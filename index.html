@@ -1,0 +1,252 @@
+import React, { useState, useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
+
+const App = () => {
+  // State for all adjustable parameters and calculated estimates
+  const [level, setLevel] = useState('Level 1');
+  const [asinCount, setAsinCount] = useState(0); 
+  const [imagesPerAsin, setImagesPerAsin] = useState(0); 
+  const [numRetouchers, setNumRetouchers] = useState(0);
+  const [perImageRate, setPerImageRate] = useState(0);
+  const [profitMargin, setProfitMargin] = useState(25); // New state for profit margin percentage
+  
+  // Define retoucher salary per day (in INR)
+  const RETOUCHER_SALARY_PER_DAY = 1000;
+  
+  // State for calculated values
+  const [totalImages, setTotalImages] = useState(0);
+  const [estimate, setEstimate] = useState({
+    totalHours: 0,
+    daysPerRetoucher: 0,
+    daysWithCustomRetouchers: 0,
+    totalCostPerImage: 0,
+    totalSalaryCost: 0,
+    totalProfit: 0,
+    durationPerAsset: '', // New state for duration per asset
+    durationPerAsin: '', // New state for duration per ASIN
+  });
+
+  // Data for retouching times
+  const retouchingTimes = {
+    'Level 1': { min: 8, max: 10, label: 'Basic' },
+    'Level 2': { min: 12, max: 25, label: 'Medium' },
+    'Level 3': { min: 30, max: 45, label: 'High' },
+    'Level 4': { min: 45, max: 90, label: 'Editorial' },
+  };
+
+  // Effect hook to recalculate estimates whenever inputs change
+  useEffect(() => {
+    // Calculate total number of images
+    const total = asinCount * imagesPerAsin;
+    setTotalImages(total);
+    
+    // Get the min and max time for the selected retouching level
+    const timeInMinutes = retouchingTimes[level];
+    
+    // Convert minutes per image to total hours
+    const minHours = (total * timeInMinutes.min) / 60;
+    const maxHours = (total * timeInMinutes.max) / 60;
+
+    // Calculate days for 1 retoucher (assuming 7 working hours per day)
+    const minDays1 = (minHours / 7).toFixed(1);
+    const maxDays1 = (maxHours / 7).toFixed(1);
+    
+    // Calculate days based on user-defined number of retouchers, handling division by zero
+    const minDaysCustom = numRetouchers > 0 ? (minDays1 / numRetouchers).toFixed(1) : 0;
+    const maxDaysCustom = numRetouchers > 0 ? (maxDays1 / numRetouchers).toFixed(1) : 0;
+    
+    // Calculate total cost based on per-image rate
+    const totalCostPerImage = total * perImageRate;
+    
+    // Calculate total salary cost
+    const minSalaryCost = minDaysCustom * numRetouchers * RETOUCHER_SALARY_PER_DAY;
+    const maxSalaryCost = maxDaysCustom * numRetouchers * RETOUCHER_SALARY_PER_DAY;
+    
+    // Calculate total profit
+    const minProfit = totalCostPerImage - minSalaryCost;
+    const maxProfit = totalCostPerImage - maxSalaryCost;
+
+    // Calculate duration per asset and per ASIN
+    const durationPerAsset = `${timeInMinutes.min}–${timeInMinutes.max} mins`;
+    const minDurationPerAsin = imagesPerAsin * timeInMinutes.min;
+    const maxDurationPerAsin = imagesPerAsin * timeInMinutes.max;
+    const durationPerAsin = `${minDurationPerAsin}–${maxDurationPerAsin} mins`;
+
+
+    // Update the state with all calculated values
+    setEstimate({
+      totalHours: `≈ ${minHours.toFixed(0)}–${maxHours.toFixed(0)}`,
+      daysPerRetoucher: `${minDays1}–${maxDays1}`,
+      daysWithCustomRetouchers: `${minDaysCustom}–${maxDaysCustom}`,
+      totalCostPerImage: `₹${totalCostPerImage.toLocaleString('en-IN')}`,
+      totalSalaryCost: `₹${minSalaryCost.toLocaleString('en-IN')}–₹${maxSalaryCost.toLocaleString('en-IN')}`,
+      totalProfit: `₹${minProfit.toLocaleString('en-IN')}–₹${maxProfit.toLocaleString('en-IN')}`,
+      durationPerAsset,
+      durationPerAsin,
+    });
+  }, [level, asinCount, imagesPerAsin, numRetouchers, perImageRate, profitMargin]);
+
+  // Handlers for input changes
+  const handleAsinChange = (e) => {
+    const value = parseInt(e.target.value, 10);
+    setAsinCount(value);
+  };
+
+  const handleImagesChange = (e) => {
+    const value = parseInt(e.target.value, 10);
+    setImagesPerAsin(value);
+  };
+
+  const handleRetouchersChange = (e) => {
+    const value = parseInt(e.target.value, 10);
+    if (value >= 0) {
+      setNumRetouchers(value);
+    }
+  };
+  
+  const handlePerImageRateChange = (e) => {
+    const value = parseFloat(e.target.value);
+    if (value >= 0) {
+      setPerImageRate(value);
+    }
+  };
+
+  const handleProfitMarginChange = (e) => {
+    const value = parseFloat(e.target.value);
+    if (value >= 0) {
+      setProfitMargin(value);
+    }
+  };
+
+  return (
+    <div className="p-8 bg-gray-50 min-h-screen font-sans">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-10 border border-gray-200 transform transition-transform duration-300 hover:scale-105">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-800 mb-6 text-center tracking-tight">
+          Apparel Retouching Calculator 🎨
+        </h1>
+        <p className="text-lg text-gray-600 mb-8 text-center max-w-xl mx-auto">
+          Estimate the time and cost for your retouching project by adjusting the parameters below.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="p-4 bg-purple-50 rounded-lg border border-purple-200 col-span-2 lg:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Retouching Level</label>
+            <select
+              value={level}
+              onChange={(e) => setLevel(e.target.value)}
+              className="mt-1 block w-full pl-3 pr-10 py-3 text-base border-purple-300 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-lg rounded-md transition-shadow duration-300 shadow-sm hover:shadow-md"
+            >
+              {Object.keys(retouchingTimes).map((key) => (
+                <option key={key} value={key}>
+                  {key} - {retouchingTimes[key].label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 col-span-2 lg:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Number of ASINs</label>
+            <input
+              type="number"
+              value={asinCount}
+              onChange={handleAsinChange}
+              className="mt-1 block w-full pl-3 pr-10 py-3 text-base border-blue-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-lg rounded-md transition-shadow duration-300 shadow-sm hover:shadow-md"
+            />
+          </div>
+
+          <div className="p-4 bg-green-50 rounded-lg border border-green-200 col-span-2 lg:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Images per ASIN</label>
+            <input
+              type="number"
+              value={imagesPerAsin}
+              onChange={handleImagesChange}
+              className="mt-1 block w-full pl-3 pr-10 py-3 text-base border-green-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-lg rounded-md transition-shadow duration-300 shadow-sm hover:shadow-md"
+            />
+          </div>
+          
+          <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200 col-span-2 lg:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Number of Retouchers</label>
+            <input
+              type="number"
+              value={numRetouchers}
+              onChange={handleRetouchersChange}
+              className="mt-1 block w-full pl-3 pr-10 py-3 text-base border-yellow-300 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-lg rounded-md transition-shadow duration-300 shadow-sm hover:shadow-md"
+            />
+          </div>
+          
+          <div className="p-4 bg-pink-50 rounded-lg border border-pink-200 col-span-2 lg:col-span-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Per Image Rate (₹)</label>
+            <input
+              type="number"
+              value={perImageRate}
+              onChange={handlePerImageRateChange}
+              className="mt-1 block w-full pl-3 pr-10 py-3 text-base border-pink-300 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-lg rounded-md transition-shadow duration-300 shadow-sm hover:shadow-md"
+            />
+          </div>
+        </div>
+
+        <div className="bg-gray-100 rounded-xl p-8 shadow-inner">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">Your Estimate</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-center">
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <p className="text-xl font-semibold text-gray-600 mb-2">Total Images to Retouch</p>
+              <p className="text-4xl font-extrabold text-blue-600">
+                {totalImages.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <p className="text-xl font-semibold text-gray-600 mb-2">Total Hours</p>
+              <p className="text-4xl font-extrabold text-blue-600">
+                {estimate.totalHours} hrs
+              </p>
+            </div>
+            <div className="sm:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <p className="text-xl font-semibold text-gray-600 mb-2">Total Project Cost</p>
+              <p className="text-4xl font-extrabold text-blue-600">
+                {estimate.totalCostPerImage}
+              </p>
+            </div>
+            <div className="sm:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <p className="text-xl font-semibold text-gray-600 mb-2">Days for 1 Retoucher</p>
+              <p className="text-4xl font-extrabold text-blue-600">
+                {estimate.daysPerRetoucher} days
+              </p>
+            </div>
+            <div className="sm:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <p className="text-xl font-semibold text-gray-600 mb-2">Days with {numRetouchers} Retouchers</p>
+              <p className="text-4xl font-extrabold text-blue-600">
+                {estimate.daysWithCustomRetouchers} days
+              </p>
+            </div>
+            <div className="sm:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <p className="text-xl font-semibold text-gray-600 mb-2">Total Retoucher Salary Cost</p>
+              <p className="text-4xl font-extrabold text-blue-600">
+                {estimate.totalSalaryCost}
+              </p>
+            </div>
+            <div className="sm:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <p className="text-xl font-semibold text-gray-600 mb-2">Total Profit</p>
+              <p className="text-4xl font-extrabold text-blue-600">
+                {estimate.totalProfit}
+              </p>
+            </div>
+            {/* New sections for duration per asset and per ASIN */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <p className="text-xl font-semibold text-gray-600 mb-2">Avg. Duration per Asset</p>
+              <p className="text-4xl font-extrabold text-blue-600">
+                {estimate.durationPerAsset}
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <p className="text-xl font-semibold text-gray-600 mb-2">Avg. Duration per ASIN</p>
+              <p className="text-4xl font-extrabold text-blue-600">
+                {estimate.durationPerAsin}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default App;
